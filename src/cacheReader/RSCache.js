@@ -18,6 +18,37 @@ import ConfigType from "./cacheTypes/ConfigType.js";
  * @property {boolean} cacheResults Save def on archive file after decompressing contents. Useful for quicker loading if loading the same thing multiple times but also can increase memory usage
  */
 
+/** @typedef {import("./loaders/ItemLoader.js").ItemDefinition} ItemDefinition */
+/** @typedef {import("./loaders/NpcLoader.js").NpcDefinition} NpcDefinition */
+/** @typedef {import("./loaders/ObjectLoader.js").ObjectDefinition} ObjectDefinition */
+/** @typedef {import("./cacheTypes/File.js").default} File */
+/** @typedef {import("./cacheTypes/Index.js").default} Index */
+
+/**
+ * Union type of all known definitions produced by loaders
+ * @typedef {(
+ *  import("./loaders/ModelLoader.js").ModelDefinition |
+ *  import("./loaders/FramesLoader.js").FramesDefinition |
+ *  import("./loaders/FramemapLoader.js").FramemapDefinition |
+ *  import("./loaders/TextureLoader.js").TextureDefinition |
+ *  import("./loaders/SpriteLoader.js").Sprite |
+ *  import("./loaders/SequenceLoader.js").SequenceDefinition |
+ *  import("./loaders/SpotAnimLoader.js").SpotAnimDefinition |
+ *  import("./loaders/UnderlayLoader.js").UnderlayDefinition |
+ *  import("./loaders/OverlayLoader.js").OverlayDefinition |
+ *  import("./loaders/ObjectLoader.js").ObjectDefinition |
+ *  import("./loaders/NpcLoader.js").NpcDefinition |
+ *  import("./loaders/ItemLoader.js").ItemDefinition |
+ *  import("./loaders/MapLoader.js").MapDefinition |
+ *  import("./loaders/MapLoader.js").LocationDefinition |
+ *  import("./loaders/AnimayaLoader.js").AnimayaDefinition |
+ *  import("./loaders/GameValLoader.js").GameValDefinition |
+ *  import("./loaders/MusicTrackLoader.js").MusicTrackDefinition |
+ *  import("./loaders/RawByteLoader.js").RawBytesDefinition |
+ *  import("./loaders/KitLoader.js").KitDefinition
+ * )} Definition
+ */
+
 /**
  * Creates a RSCache reader
  * @category Base
@@ -69,7 +100,7 @@ class RSCache {
      * Get a cache Index file.
      * @method
      * @param {(Number | IndexType)} index
-     * @returns [Index]{@link Index}
+     * @returns {Index}
      */
     getIndex(index) {
         let indexId;
@@ -105,7 +136,7 @@ class RSCache {
      * @param {(Number | IndexType)} indexId Can be a number or IndexType
      * @param {(Number)} archiveId Can be a number but also can be a ConfigType if IndexType is CONFIG
      * @param {options} options
-     * @returns Array<[File]{@link File}>
+     * @returns {Promise<File[]>}
      */
     async getAllFiles(indexId, archiveId, options = {}) {
         try {
@@ -166,7 +197,7 @@ class RSCache {
      * @param {(Number)} archiveId Can be a number but also can be a ConfigType if IndexType is CONFIG
      * @param {Number} fileId Id of the file to get from the archive
      * @param {options} options
-     * @returns [File]{@link File}
+     * @returns {Promise<File>}
      */
     async getFile(indexId, archiveId, fileId = 0, options = {}) {
         return this.getAllFiles(indexId, archiveId, options).then((x) => x[fileId]);
@@ -177,7 +208,7 @@ class RSCache {
      * @param {(Number | IndexType)} indexId Can be a number or IndexType
      * @param {(Number)} archiveId Can be a number but also can be a ConfigType if IndexType is CONFIG
      * @param {options} options
-     * @returns Definition
+     * @returns {Promise<Definition[]>}
      */
     async getAllDefs(indexId, archiveId, options = {}) {
         try {
@@ -194,7 +225,7 @@ class RSCache {
      * @param {(Number)} archiveId Can be a number but also can be a ConfigType if IndexType is CONFIG
      * @param {Number} fileId Id of the definition to get from the archive
      * @param {options} options
-     * @returns Definition
+     * @returns {Promise<Definition>}
      */
     async getDef(indexId, archiveId, fileId = 0, options = {}) {
         return this.getAllDefs(indexId, archiveId, options).then((x) => x[fileId]);
@@ -204,7 +235,7 @@ class RSCache {
      * Helper method to get a NPC definition
      * @param {Number} id NPC Id
      * @param {options} options
-     * @returns [NpcDefinition]{@link NpcDefinition}
+     * @returns {Promise<NpcDefinition>}
      */
     async getNPC(id, options = {}) {
         return this.getDef(IndexType.CONFIGS, ConfigType.NPC, id, options);
@@ -214,7 +245,7 @@ class RSCache {
      * Helper method to get an Item definition
      * @param {Number} id Item Id
      * @param {options} options
-     * @returns ItemDefinition
+     * @returns {Promise<ItemDefinition>}
      */
     async getItem(id, options = {}) {
         return this.getDef(IndexType.CONFIGS, ConfigType.ITEM, id, options);
@@ -224,7 +255,7 @@ class RSCache {
      * Helper method to get an Object definition
      * @param {Number} id Object Id
      * @param {options} options
-     * @returns ObjectDefinition
+     * @returns {Promise<ObjectDefinition>}
      */
     async getObject(id, options = {}) {
         return this.getDef(IndexType.CONFIGS, ConfigType.OBJECT, id, options);
@@ -237,19 +268,27 @@ class RSCache {
                 h = h * 31 + str.charCodeAt(i);
             }
             return new Int32Array([h])[0];
-        }
+        };
 
         let archives = this.indicies[IndexType.MAPS.id].archives;
         let hashVal = hash(type + x + "_" + y);
 
-        let map = Object.values(archives).find(x => x.nameHash == hashVal);
+        let map = Object.values(archives).find((x) => x.nameHash == hashVal);
         return this.getDef(IndexType.MAPS, map.id);
     }
 
+    /**
+     * Get map location definition for region
+     * @returns {Promise<Definition>}
+     */
     async getLoc(x, y) {
         return this.#getMapDef(x, y, "l");
     }
 
+    /**
+     * Get map terrain definition for region
+     * @returns {Promise<Definition>}
+     */
     async getMap(x, y) {
         return this.#getMapDef(x, y, "m");
     }
