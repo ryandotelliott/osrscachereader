@@ -5,7 +5,7 @@ import Matrix from "./cacheReader/cacheTypes/anim/Matrix.js";
 import GLTFExporter from "./cacheReader/exporters/GLTFExporter.js";
 import CacheDumper from "./cacheReader/CacheDumper.js";
 import ModelGroup from "./cacheReader/helpers/ModelGroup.js";
-import { ModelDefinition } from "./cacheReader/loaders/ModelLoader.js";
+import ModelLoader, { ModelDefinition } from "./cacheReader/loaders/ModelLoader.js";
 import { KitDefinition } from "./cacheReader/loaders/KitLoader.js";
 import { GameValDefinition } from "./cacheReader/loaders/GameValLoader.js";
 import { MusicTrackDefinition } from "./cacheReader/loaders/MusicTrackLoader.js";
@@ -32,6 +32,7 @@ export {
     GLTFExporter,
     CacheDumper,
     ModelGroup,
+    ModelLoader,
     ModelDefinition,
     KitDefinition,
     GameValDefinition,
