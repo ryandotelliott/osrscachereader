@@ -758,7 +758,8 @@ export class ModelDefinition {
                 this[property] = [...this[property], ...otherModel[property]];
             }
         };
-
+        
+        copy("vertexColors");
         copy("vertexSkins");
         copy("faceRenderTypes");
         copy("faceRenderPriorities");

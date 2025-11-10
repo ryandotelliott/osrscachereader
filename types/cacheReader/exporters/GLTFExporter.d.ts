@@ -20,7 +20,7 @@ export default class GLTFExporter {
     /**
      * mapping of original vertex ID to new vertex IDs
      * if alpha is true, it refers to the position in this.alphaVertices, otherwise this.verticies
-     * @type {[originalIdx: number]: {[colorKey: number]: {idx: number, alpha: boolean}}
+     * @type {[originalIdx: number]: {[colorKey: number]: {idx: number, alpha: boolean}}}
      */
     remappedVertices: [originalIdx: number];
     combineColorAndAlpha: (color: any, alpha: any) => number;
