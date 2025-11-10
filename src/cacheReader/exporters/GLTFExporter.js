@@ -388,6 +388,53 @@ class GLTFFile {
         this.meshes[0].primitives[primitive].attributes.TEXCOORD_0 = this.accessors.length - 1;
         this.meshes[0].primitives[primitive].material = this.materials.length - 1;
     }
+
+    addVertexColors(colors, primitive, transparent = false) {
+        const colorArray = colors.flat();
+        const colorBytes = new Uint8Array(new Float32Array(colorArray).buffer);
+
+        this.materials.push({
+            ...(transparent && { alphaMode: "BLEND" }),
+            pbrMetallicRoughness: {
+                metallicFactor: 0.0,
+                roughnessFactor: 1.0,
+            },
+        });
+
+        const buffersAmount = this.buffers.length;
+        this.buffers.push({
+            uri: "data:application/gltf-buffer;base64," + base64.bytesToBase64(colorBytes),
+            byteLength: colorBytes.length,
+        });
+
+        const bufferViewAmount = this.bufferViews.length;
+        this.bufferViews.push({
+            buffer: buffersAmount,
+            byteOffset: 0,
+            target: 34962,
+            byteLength: colorBytes.length,
+        });
+
+        let min = [1.0, 1.0, 1.0];
+        let max = [0.0, 0.0, 0.0];
+        for (let i = 0; i < colors.length; i++) {
+            const c = colors[i] || [1.0, 1.0, 1.0];
+            max = [Math.max(max[0], c[0]), Math.max(max[1], c[1]), Math.max(max[2], c[2])];
+            min = [Math.min(min[0], c[0]), Math.min(min[1], c[1]), Math.min(min[2], c[2])];
+        }
+        this.accessors.push({
+            bufferView: bufferViewAmount,
+            byteOffset: 0,
+            componentType: 5126,
+            count: colors.length,
+            type: "VEC3",
+            max,
+            min,
+        });
+
+        this.meshes[0].primitives[primitive].attributes.COLOR_0 = this.accessors.length - 1;
+        this.meshes[0].primitives[primitive].material = this.materials.length - 1;
+    }
 }
 
 export default class GLTFExporter {
@@ -409,6 +456,8 @@ export default class GLTFExporter {
     animations = [];
     uvs = [];
     alphaUvs = [];
+    colors = [];
+    alphaColors = [];
 
     colorPalettePng = null;
 
@@ -557,71 +606,50 @@ export default class GLTFExporter {
     }
 
     addColors() {
-        const seenColors = {};
-        const colorToPaletteIndex = {};
-        const order = [];
-        for (let i = 0; i < this.modelDef.faceColors.length; ++i) {
-            const lookupIndex = this.combineColorAndAlpha(this.modelDef.faceColors[i], this.modelDef.faceAlphas[i] ?? 0);
-            // ensure unique color + alpha combinations
-            if (seenColors[lookupIndex]) {
-                continue;
-            }
-            let rscolor = this.modelDef.faceColors[i];
-            let color = HSLtoRGB(rscolor, BRIGHTNESS_MAX);
-            let a = this.modelDef.faceAlphas[i] ?? 0;
-            let rscolorWithAlpha = this.combineColorAndAlpha(color, a);
-            seenColors[lookupIndex] = color;
-            colorToPaletteIndex[lookupIndex] = order.length;
-            order.push(rscolorWithAlpha);
-        }
-        const numUniqueColors = Object.keys(seenColors).length;
-        // create a texture for the face colors
-        const pSize = 4;
-        const canvas = createCanvas(numUniqueColors * pSize, pSize, "png");
-        const ctx = canvas.getContext("2d");
-        let xx = 0;
-        for (const value of order) {
-            const a = (value >> 24) & 0xff;
-            let r = (value >> 16) & 0xff;
-            let g = (value >> 8) & 0xff;
-            let b = value & 0xff;
-            let alpha = 1 - a / 255;
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-            ctx.fillRect(xx, 0, pSize, pSize);
-            xx += pSize;
-        }
-        this.colorPalettePng = canvas.toDataURL();
+        // Create per-vertex RGB colors (COLOR_0) instead of palette UVs
+        this.colors = new Array(this.verticies.length);
+        this.alphaColors = new Array(this.alphaVertices.length);
 
-        this.uvs = new Array(this.verticies.length);
-        this.alphaUvs = new Array(this.alphaVertices.length);
-        const half = 1 / numUniqueColors / 2;
+        const colorToFloat3 = (rsColor /*, alphaByte*/) => {
+            const rgb = HSLtoRGB(rsColor, BRIGHTNESS_MAX);
+            const r = ((rgb >> 16) & 0xff) / 255.0;
+            const g = ((rgb >> 8) & 0xff) / 255.0;
+            const b = (rgb & 0xff) / 255.0;
+            return [r, g, b];
+        };
+
         for (let i = 0; i < this.faces.length; i++) {
-            let faceId = this.faces[i];
+            const faceId = this.faces[i];
             const faceColor = this.modelDef.faceColors[faceId];
             const faceAlpha = this.modelDef.faceAlphas[faceId] ?? 0;
             const lookupKey = this.combineColorAndAlpha(faceColor, faceAlpha);
-            const paletteIndex = colorToPaletteIndex[lookupKey];
-            // remap to new position within the vertices based on its color and alpha
-            let v1 = this.remappedVertices[this.modelDef.faceVertexIndices1[faceId]][lookupKey].idx;
-            let v2 = this.remappedVertices[this.modelDef.faceVertexIndices2[faceId]][lookupKey].idx;
-            let v3 = this.remappedVertices[this.modelDef.faceVertexIndices3[faceId]][lookupKey].idx;
-            this.uvs[v1] = [paletteIndex / numUniqueColors + half, 0.33];
-            this.uvs[v2] = [paletteIndex / numUniqueColors + half, 0.5];
-            this.uvs[v3] = [paletteIndex / numUniqueColors + half, 0.66];
+            const c = colorToFloat3(faceColor, faceAlpha);
+            const v1 = this.remappedVertices[this.modelDef.faceVertexIndices1[faceId]][lookupKey].idx;
+            const v2 = this.remappedVertices[this.modelDef.faceVertexIndices2[faceId]][lookupKey].idx;
+            const v3 = this.remappedVertices[this.modelDef.faceVertexIndices3[faceId]][lookupKey].idx;
+            this.colors[v1] = c;
+            this.colors[v2] = c;
+            this.colors[v3] = c;
         }
         for (let i = 0; i < this.alphaFaces.length; i++) {
-            let faceId = this.alphaFaces[i];
+            const faceId = this.alphaFaces[i];
             const faceColor = this.modelDef.faceColors[faceId];
             const faceAlpha = this.modelDef.faceAlphas[faceId] ?? 0;
             const lookupKey = this.combineColorAndAlpha(faceColor, faceAlpha);
-            const paletteIndex = colorToPaletteIndex[lookupKey];
-            // remap to new position within the vertices based on its color and alpha
-            let v1 = this.remappedVertices[this.modelDef.faceVertexIndices1[faceId]][lookupKey].idx;
-            let v2 = this.remappedVertices[this.modelDef.faceVertexIndices2[faceId]][lookupKey].idx;
-            let v3 = this.remappedVertices[this.modelDef.faceVertexIndices3[faceId]][lookupKey].idx;
-            this.alphaUvs[v1] = [paletteIndex / numUniqueColors + half, 0.33];
-            this.alphaUvs[v2] = [paletteIndex / numUniqueColors + half, 0.5];
-            this.alphaUvs[v3] = [paletteIndex / numUniqueColors + half, 0.66];
+            const c = colorToFloat3(faceColor, faceAlpha);
+            const v1 = this.remappedVertices[this.modelDef.faceVertexIndices1[faceId]][lookupKey].idx;
+            const v2 = this.remappedVertices[this.modelDef.faceVertexIndices2[faceId]][lookupKey].idx;
+            const v3 = this.remappedVertices[this.modelDef.faceVertexIndices3[faceId]][lookupKey].idx;
+            this.alphaColors[v1] = c;
+            this.alphaColors[v2] = c;
+            this.alphaColors[v3] = c;
+        }
+        // Default any missing entries to white
+        for (let i = 0; i < this.colors.length; i++) {
+            if (!this.colors[i]) this.colors[i] = [1.0, 1.0, 1.0];
+        }
+        for (let i = 0; i < this.alphaColors.length; i++) {
+            if (!this.alphaColors[i]) this.alphaColors[i] = [1.0, 1.0, 1.0];
         }
     }
 
@@ -656,15 +684,10 @@ export default class GLTFExporter {
             file.addAnimation(morphTargetIds, lengths, this.morphTargetsAmount, name);
         });
 
-        // add UVs and palette texture
-        file.addColors(this.uvs, this.colorPalettePng, 0);
+        // add vertex colors instead of UV palette
+        file.addVertexColors(this.colors, 0);
         if (this.alphaVertices.length > 0) {
-            file.addColors(
-                this.alphaUvs,
-                alphaPrimitiveIndex === 1 ? null : this.colorPalettePng,
-                alphaPrimitiveIndex,
-                true,
-            );
+            file.addVertexColors(this.alphaColors, alphaPrimitiveIndex, true);
         }
         return file;
     }

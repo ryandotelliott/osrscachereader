@@ -39,5 +39,6 @@ let vec = [Math.cos(angle) * animationSpeed, Math.sin(angle) * animationSpeed];
     animationDirection: number;
 }
 export default class TextureLoader {
+    rev233: boolean;
     load(bytes: any, id: any, cache: any, options: any): Promise<TextureDefinition>;
 }

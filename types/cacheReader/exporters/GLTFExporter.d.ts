@@ -12,6 +12,8 @@ export default class GLTFExporter {
     animations: any[];
     uvs: any[];
     alphaUvs: any[];
+    colors: any[];
+    alphaColors: any[];
     colorPalettePng: any;
     modelDef: any;
     morphTargetsMap: {};
@@ -61,5 +63,6 @@ declare class GLTFFile {
     addMorphTarget(verticies: any, primitive: any): void;
     addAnimation(targets: any, lengths: any, morphTargetsAmount: any, name: any): void;
     addColors(uvs: any, colorPalettePng: any, primitive: any, transparent?: boolean): void;
+    addVertexColors(colors: any, primitive: any, transparent?: boolean): void;
 }
 export {};

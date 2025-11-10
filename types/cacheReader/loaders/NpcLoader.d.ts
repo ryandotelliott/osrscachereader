@@ -1,5 +1,6 @@
 export default class NpcLoader {
     rev210HeadIcons: boolean;
+    rev233: boolean;
     configureForRevision(revision: any): void;
     load(bytes: any, id: any): NpcDefinition;
     handleOpcode(def: any, opcode: any, dataview: any): void;
@@ -92,8 +93,8 @@ export class NpcDefinition {
     combatLevel: number;
     /** @type {number} */
     heightScale: number;
-    /** @type {boolean} */
-    hasRenderPriority: boolean;
+    /** @type {number} */
+    renderPriority: number;
     /**
      * Number from 0 to 255. Overrides NPC model's ambient lighting
      * @type {Byte}
