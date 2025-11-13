@@ -615,7 +615,9 @@ export default class GLTFExporter {
             const r = ((rgb >> 16) & 0xff) / 255.0;
             const g = ((rgb >> 8) & 0xff) / 255.0;
             const b = (rgb & 0xff) / 255.0;
-            return [r, g, b];
+            // decode sRGB -> linear, because glTF expects vertex colors in linear space
+            const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+            return [srgbToLinear(r), srgbToLinear(g), srgbToLinear(b)];
         };
 
         for (let i = 0; i < this.faces.length; i++) {
